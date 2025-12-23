@@ -13,30 +13,28 @@ AuditBot is a lightweight Java CLI that reads a local PDF, extracts its text (or
 ## Files
 
 - `src/main/java/SimpleAuditBot.java` - main program.
-- `src/main/resources/PUB100420.pdf` - sample PDF (replace with your own).
+- `auditbot-1.0.0.jar` - executable JAR file (built with `mvn package`).
 - `pom.xml` - Maven build file (includes PDFBox, OkHttp, JSON, and Tess4J dependencies).
 - `.env.example` - example environment file for API key.
 
 ## Setup
 
-1. Place your PDF at:
+1. Place your PDF in the same folder as the JAR file and rename it to `policy.pdf`.
 
-   `src/main/resources/PUB100420.pdf` (or update the `PDF_PATH` constant in the code for a different name).
+2. A `.env` file is included with a temporary Gemini API key for testing purposes. If you need to use your own key, replace it in the `.env` file or set the environment variable `GEMINI_API_KEY`.
 
-2. Set your Gemini API key. You can either set the environment variable `GEMINI_API_KEY` or create a `.env` file in the project root.
-
-   - PowerShell (env var):
-
-```powershell
-$env:GEMINI_API_KEY = 'YOUR_REAL_KEY'
-$env:TESSDATA_PREFIX = 'C:\Program Files\Tesseract-OCR\tessdata'  # optional if needed
-```
-
-   - Or create a `.env` file at the project root with the following contents (copy from `.env.example`):
+   - To use your own key, edit the `.env` file:
 
 ```text
 GEMINI_API_KEY=YOUR_REAL_KEY
 TESSDATA_PREFIX=C:\Program Files\Tesseract-OCR\tessdata
+```
+
+   - Or set the environment variable in PowerShell:
+
+```powershell
+$env:GEMINI_API_KEY = 'YOUR_REAL_KEY'
+$env:TESSDATA_PREFIX = 'C:\Program Files\Tesseract-OCR\tessdata'  # optional if needed
 ```
 
 3. Build the project:

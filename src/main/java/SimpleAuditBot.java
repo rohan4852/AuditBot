@@ -19,7 +19,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class SimpleAuditBot {
-    private static final String PDF_PATH = "src/main/resources/PUB100420.pdf";
+    private static final String PDF_PATH = "policy.pdf";
     private static final String API_KEY;
     private static final OkHttpClient httpClient = new OkHttpClient();
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
@@ -94,7 +94,7 @@ public class SimpleAuditBot {
         File pdf = new File(PDF_PATH);
         if (!pdf.exists()) {
             System.err.println("PDF not found at: " + PDF_PATH);
-            System.err.println("Place your PDF at src/main/resources/policy.pdf");
+            System.err.println("Place your PDF in the same folder as the tool and rename it to policy.pdf");
             System.exit(1);
         }
 
