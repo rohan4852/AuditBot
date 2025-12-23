@@ -2,6 +2,14 @@
 
 AuditBot is a lightweight Java CLI that reads a local PDF, extracts its text (or runs OCR for scanned PDFs), and sends the content plus a user question to the Google Gemini (Generative Language) API to produce a strict compliance answer.
 
+## Quick Start for Pilot (No Code Required)
+
+1. Ensure you have Java 17+ installed.
+2. Download the `auditbot-1.0.0.jar` file.
+3. Place the PDF you want to audit in the same folder and rename it to `policy.pdf`.
+4. Open your terminal/command prompt in that folder and run:
+   java -jar auditbot-1.0.0.jar "What is the password policy?"
+
 ## Prerequisites
 
 - Java 17+ and Maven installed.
@@ -63,4 +71,3 @@ The program will:
 - Tess4J relies on native Tesseract libraries; ensure Tesseract is installed and `TESSDATA_PREFIX` points to the `tessdata` folder if Tess4J cannot find language data.
 - If you need a different OCR language, modify `tesseract.setLanguage("eng")` in `SimpleAuditBot.java`.
 - The program caches PDF text and chosen model for performance.
-
