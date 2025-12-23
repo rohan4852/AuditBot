@@ -23,6 +23,8 @@ public class SimpleAuditBot {
     private static final String API_KEY;
     private static final OkHttpClient httpClient = new OkHttpClient();
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static java.util.Map<String, String> cachedPdfTexts = new java.util.HashMap<>();
+    private static String cachedChosenModel = null;
 
     static {
         // Load .env file (if present) so users may supply values in a project-local
@@ -71,38 +73,22 @@ public class SimpleAuditBot {
         if (System.getenv("GEMINI_API_KEY") == null || System.getenv("GEMINI_API_KEY").isBlank()) {
             System.err.println("Warning: GEMINI_API_KEY not set. Using placeholder -- API calls will fail.");
         }
-        // Log Tesseract diagnostic info to help debug OCR issues
+        // Log Tesseract diagnostic info to help debug OCR issues (removed version check
+        // for speed)
         String tessDataEnv = System.getenv("TESSDATA_PREFIX");
         System.out.println("TESSDATA_PREFIX=" + (tessDataEnv == null ? "(null)" : tessDataEnv));
-        try {
-            ProcessBuilder pb = new ProcessBuilder("tesseract", "--version");
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
-            java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(p.getInputStream()));
-            String line = r.readLine();
-            if (line != null) {
-                System.out.println("Tesseract found: " + line);
-            } else {
-                System.err.println("Tesseract executable did not return version info.");
-            }
-            p.destroy();
-        } catch (IOException e) {
-            System.err.println("Tesseract not found on PATH or failed to run: " + e.getMessage());
-        }
-        // Determine a model that supports generateContent
+        // Dynamically choose a model that supports generateContent
         String chosenModel = null;
         try {
             chosenModel = chooseModelForGenerateContent();
-            if (chosenModel != null) {
-                System.out.println("Using model: " + chosenModel);
-            } else {
-                System.err
-                        .println("No model advertising generateContent found. Falling back to models/gemini-2.5-flash");
-                chosenModel = "models/gemini-2.5-flash";
+            if (chosenModel == null) {
+                System.err.println("No suitable model found for generateContent.");
+                System.exit(1);
             }
-        } catch (Exception e) {
-            System.err.println("Failed to discover models: " + e.getMessage());
-            chosenModel = "models/gemini-2.5-flash";
+            cachedChosenModel = chosenModel;
+        } catch (IOException e) {
+            System.err.println("Failed to choose model: " + e.getMessage());
+            System.exit(1);
         }
 
         File pdf = new File(PDF_PATH);
@@ -112,16 +98,28 @@ public class SimpleAuditBot {
             System.exit(1);
         }
 
-        String pdfText;
-        try {
-            pdfText = extractTextFromPDF(pdf);
-        } catch (IOException e) {
-            System.err.println("Failed to read PDF: " + e.getMessage());
-            return;
+        String pdfText = cachedPdfTexts.get(PDF_PATH);
+        if (pdfText == null) {
+            try {
+                pdfText = extractTextFromPDF(pdf);
+                cachedPdfTexts.put(PDF_PATH, pdfText);
+            } catch (IOException e) {
+                System.err.println("Failed to read PDF: " + e.getMessage());
+                return;
+            }
+        } else {
+            System.out.println("Using cached PDF text.");
         }
 
-        String question = "What are the password complexity requirements?";
-
+        String question;
+        if (args.length > 0) {
+            // Join all command line arguments into one string
+            question = String.join(" ", args);
+        } else {
+            // Default question if nothing is typed
+            question = "What are the benefits for the Development Bank of Japan?";
+        }
+        System.out.println("🔎 Analyzing Policy for: \"" + question + "\"...");
         try {
             String responseBody = askGemini(pdfText, question, chosenModel);
             String extracted = tryExtractTextField(responseBody);

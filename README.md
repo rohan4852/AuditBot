@@ -13,14 +13,15 @@ AuditBot is a lightweight Java CLI that reads a local PDF, extracts its text (or
 ## Files
 
 - `src/main/java/SimpleAuditBot.java` - main program.
-- `src/main/resources/policy.pdf` - place your PDF here.
+- `src/main/resources/PUB100420.pdf` - sample PDF (replace with your own).
 - `pom.xml` - Maven build file (includes PDFBox, OkHttp, JSON, and Tess4J dependencies).
+- `.env.example` - example environment file for API key.
 
 ## Setup
 
 1. Place your PDF at:
 
-   src/main/resources/policy.pdf
+   `src/main/resources/PUB100420.pdf` (or update the `PDF_PATH` constant in the code for a different name).
 
 2. Set your Gemini API key. You can either set the environment variable `GEMINI_API_KEY` or create a `.env` file in the project root.
 
@@ -47,22 +48,21 @@ mvn package
 4. Run the program:
 
 ```bash
-mvn -q exec:java
+mvn -q exec:java [optional question]
 ```
 
+   - If no arguments are provided, it uses the default question: "What are the benefits for the Development Bank of Japan?"
+   - You can pass a custom question as command-line arguments, e.g., `mvn -q exec:java What are the key policies?`
+
 The program will:
-- Discover a model that supports `generateContent` and use it.
+- Dynamically discover and use a Gemini model that supports `generateContent`.
 - Extract text from the PDF. If the PDF has little or no selectable text, it will perform OCR on each page.
-- Send the document text + the hardcoded question `What are the password complexity requirements?` to the Gemini API and print the audit result.
+- Send the document text + your question to the Gemini API and print the audit result.
 
 ## Notes & Troubleshooting
 
 - If PDFBox extracts no or very little text and OCR returns nothing, your PDF may be encrypted or corrupted.
 - Tess4J relies on native Tesseract libraries; ensure Tesseract is installed and `TESSDATA_PREFIX` points to the `tessdata` folder if Tess4J cannot find language data.
 - If you need a different OCR language, modify `tesseract.setLanguage("eng")` in `SimpleAuditBot.java`.
-
-## Next steps
-- Make the question a CLI argument.
-- Add interactive model selection instead of auto-fallback.
-- Add retries, exponential backoff, and response validation for the API call.
+- The program caches PDF text and chosen model for performance.
 
