@@ -1,73 +1,55 @@
-# AuditBot
+# AuditBot (Streamlit)
 
-AuditBot is a lightweight Java CLI that reads a local PDF, extracts its text (or runs OCR for scanned PDFs), and sends the content plus a user question to the Google Gemini (Generative Language) API to produce a strict compliance answer.
+AuditBot is a **Python Streamlit** web app that audits one or more PDFs against a user question using **Gemini**, while enforcing strict evidence requirements.
 
-## Quick Start for Pilot (No Code Required)
+Core logic preserved from the original Java CLI:
 
-1. Ensure you have Java 17+ installed.
-2. Download the `auditbot-1.0.0.jar` file.
-3. Place the PDF you want to audit in the same folder and rename it to `policy.pdf`.
-4. Open your terminal/command prompt in that folder and run:
-   java -jar auditbot-1.0.0.jar "What is the password policy?"
+1. **PDF extraction**: Try selectable text first (pypdf). If extracted text is **< 50 characters**, fall back to OCR.
+2. **OCR fallback**: `pdf2image` + `pytesseract`.
+3. **AI model**: Gemini via `google-generativeai` (default: `gemini-1.5-flash`, optional `gemini-pro`).
+4. **System prompt** (verbatim):
 
-## Prerequisites
-
-- Java 17+ and Maven installed.
-- Tesseract OCR installed on your machine for OCR support:
-  - Windows: install via the official installer (e.g., https://github.com/tesseract-ocr/tesseract)
-  - Ensure the `tesseract` executable is on your `PATH`, or set `TESSDATA_PREFIX` to your tessdata folder.
-- A working Google Generative Language API key with model access.
-
-## Files
-
-- `src/main/java/SimpleAuditBot.java` - main program.
-- `auditbot-1.0.0.jar` - executable JAR file (built with `mvn package`).
-- `pom.xml` - Maven build file (includes PDFBox, OkHttp, JSON, and Tess4J dependencies).
-- `.env.example` - example environment file for API key.
+> "You are a strict Compliance Auditor. Answer the question ONLY using the facts from the document provided below. If the answer is not in the text, say 'EVIDENCE NOT FOUND'. Quote the specific sentence from the text as proof."
 
 ## Setup
 
-1. Place your PDF in the same folder as the JAR file and rename it to `policy.pdf`.
+### 1) Create a virtualenv (recommended)
 
-2. A `.env` file is included with a temporary Gemini API key for testing purposes. If you need to use your own key, replace it in the `.env` file or set the environment variable `GEMINI_API_KEY`.
+```bash
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+```
 
-   - To use your own key, edit the `.env` file:
+### 2) Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3) Provide your API key
+
+Create a `.env` file in the project root:
 
 ```text
 GEMINI_API_KEY=YOUR_REAL_KEY
-TESSDATA_PREFIX=C:\Program Files\Tesseract-OCR\tessdata
+# Optional
+TESSDATA_PREFIX=C:\\Program Files\\Tesseract-OCR\\tessdata
+TESSERACT_CMD=C:\\Program Files\\Tesseract-OCR\\tesseract.exe
+POPPLER_PATH=C:\\path\\to\\poppler\\Library\\bin
 ```
 
-   - Or set the environment variable in PowerShell:
+Or paste the API key directly into the app sidebar.
 
-```powershell
-$env:GEMINI_API_KEY = 'YOUR_REAL_KEY'
-$env:TESSDATA_PREFIX = 'C:\Program Files\Tesseract-OCR\tessdata'  # optional if needed
-```
-
-3. Build the project:
+## Running the app
 
 ```bash
-mvn package
+streamlit run app.py
 ```
 
-4. Run the program:
+## Notes / Troubleshooting
 
-```bash
-mvn -q exec:java [optional question]
-```
-
-   - If no arguments are provided, it uses the default question: "What are the benefits for the Development Bank of Japan?"
-   - You can pass a custom question as command-line arguments, e.g., `mvn -q exec:java What are the key policies?`
-
-The program will:
-- Dynamically discover and use a Gemini model that supports `generateContent`.
-- Extract text from the PDF. If the PDF has little or no selectable text, it will perform OCR on each page.
-- Send the document text + your question to the Gemini API and print the audit result.
-
-## Notes & Troubleshooting
-
-- If PDFBox extracts no or very little text and OCR returns nothing, your PDF may be encrypted or corrupted.
-- Tess4J relies on native Tesseract libraries; ensure Tesseract is installed and `TESSDATA_PREFIX` points to the `tessdata` folder if Tess4J cannot find language data.
-- If you need a different OCR language, modify `tesseract.setLanguage("eng")` in `SimpleAuditBot.java`.
-- The program caches PDF text and chosen model for performance.
+- **OCR prerequisites**:
+  - `pytesseract` requires **Tesseract OCR** installed on your machine.
+  - `pdf2image` requires **Poppler** installed (and available on PATH), or set `POPPLER_PATH` to the Poppler `bin` directory.
+- The app caches expensive PDF extraction / OCR work using `@st.cache_data` by caching on the **PDF bytes + OCR settings** (not on the Streamlit UploadedFile object).
