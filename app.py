@@ -14,10 +14,14 @@ import pytesseract
 
 import google.generativeai as genai
 
-
 SYSTEM_PROMPT = (
-    "You are a strict Compliance Auditor. Answer the question ONLY using the facts from the document provided below. "
-    "If the answer is not in the text, say 'EVIDENCE NOT FOUND'. Quote the specific sentence from the text as proof."
+    "You are a Senior IT Compliance Auditor (CISA/CISSP) specializing in SOC2 and ISO 27001 audits. "
+    "Your task is to analyze the provided policy document text against an audit question.\n\n"
+    "STRICT RULES:\n"
+    "1. FACTUAL STRICTNESS: You must answer ONLY using facts explicitly stated in the provided text. Do not use prior knowledge or assumptions.\n"
+    "2. EVIDENCE QUOTING: The 'evidence' field must be a VERBATIM copy-paste of the sentence from the text that supports your finding. Do not paraphrase.\n"
+    "3. HANDLING GAPS: If the document does not explicitly address the question, the audit_finding must be 'Gaps Observed: Policy does not explicitly state...' and evidence must be 'EVIDENCE NOT FOUND'.\n"
+    "4. TONE: Be direct, objective, and professional. Avoid fluff."
 )
 
 
@@ -124,44 +128,48 @@ def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+# REPLACE THE ENTIRE ask_gemini FUNCTION WITH THIS:
 def ask_gemini(*, api_key: str, model_name: str, document_text: str, question: str) -> AuditRow:
     genai.configure(api_key=api_key)
 
     if model_name.startswith("models/"):
         model_name = model_name[len("models/") :]
 
+    # Configure model with JSON enforcement
     model = genai.GenerativeModel(
         model_name=model_name,
         system_instruction=SYSTEM_PROMPT,
+        generation_config={"response_mime_type": "application/json"}  # <--- THIS FORCES PERFECT JSON
     )
 
-    # Keep system prompt exactly as specified (above). Use the user prompt only to request structure.
     user_prompt = (
-        "DOCUMENT:\n"
-        f"{document_text}\n\n"
-        "QUESTION:\n"
-        f"{question}\n\n"
-        "Return ONLY a JSON object with keys: \"audit_finding\" and \"evidence\". "
-        "The value of \"evidence\" must be an exact sentence copied from DOCUMENT (verbatim quote). "
-        "If the answer cannot be supported from DOCUMENT, set BOTH values to 'EVIDENCE NOT FOUND'."
+        f"DOCUMENT CONTENT:\n{document_text}\n\n"
+        f"AUDIT QUESTION:\n{question}\n\n"
+        "INSTRUCTIONS:\n"
+        "Analyze the document and return a JSON object with exactly two keys:\n"
+        "1. \"audit_finding\": A summary of whether the control is met, partially met, or missing.\n"
+        "2. \"evidence\": The exact sentence from the text proving the finding.\n"
+        "If evidence is missing, set \"evidence\" to 'EVIDENCE NOT FOUND'."
     )
 
-    resp = model.generate_content(user_prompt)
-    raw = (getattr(resp, "text", None) or "").strip()
+    try:
+        resp = model.generate_content(user_prompt)
+        
+        # Parse JSON directly (no more Regex needed)
+        parsed = json.loads(resp.text)
+        
+        return AuditRow(
+            filename="", 
+            audit_finding=parsed.get("audit_finding", "Error parsing finding"), 
+            evidence=parsed.get("evidence", "EVIDENCE NOT FOUND")
+        )
 
-    parsed = _extract_json_object(raw)
-    if isinstance(parsed, dict):
-        audit_finding = str(parsed.get("audit_finding", "")).strip()
-        evidence = str(parsed.get("evidence", "")).strip()
-        if not audit_finding:
-            audit_finding = raw
-        if not evidence:
-            evidence = ""
-        return AuditRow(filename="", audit_finding=audit_finding, evidence=evidence)
-
-    # Fallback: treat the entire response as the finding.
-    return AuditRow(filename="", audit_finding=raw or "", evidence="")
-
+    except Exception as e:
+        return AuditRow(
+            filename="", 
+            audit_finding="AI PROCESSING ERROR", 
+            evidence=_safe_str(e)
+        )
 
 def choose_model(api_key: str, preferred: str) -> str:
     """Mirror the Java behavior lightly: allow an 'Auto' mode that selects a model supporting generateContent."""
@@ -182,7 +190,12 @@ def choose_model(api_key: str, preferred: str) -> str:
 
 
 def main() -> None:
+    # Prefer a local, gitignored `.env` for secrets.
     load_dotenv()
+    # Convenience fallback: if `.env` doesn't exist, allow reading defaults from `.env.example`.
+    # NOTE: do NOT store real secrets in `.env.example` if you plan to commit/push it.
+    if (not os.path.exists(".env")) and os.path.exists(".env.example"):
+        load_dotenv(".env.example")
 
     st.set_page_config(page_title="AuditBot", layout="wide")
     st.title("AuditBot — Compliance Auditor")
