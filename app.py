@@ -208,12 +208,23 @@ def main() -> None:
     with st.sidebar:
         st.header("Configuration")
 
-        api_key = st.text_input(
-            "GEMINI_API_KEY",
-            value=os.getenv("GEMINI_API_KEY", ""),
+        # 1. Try to get key from Secrets (Cloud) or Environment (Local)
+        secret_key = os.getenv("GEMINI_API_KEY")
+
+        # 2. Show the input box (Optional override)
+        # If secret_key exists, we tell the user they are "Logged in via Secrets"
+        placeholder_text = "✅ Key loaded from Secrets" if secret_key else "Enter GEMINI_API_KEY"
+        
+        user_key = st.text_input(
+            "API Key",
             type="password",
-            help="Stored only in this browser session unless you also put it in your .env.",
+            placeholder=placeholder_text,
+            help="If you leave this empty, the app uses the secure system key."
         )
+
+        # 3. Determine which key to use
+        # Priority: User Input > Secret Key
+        api_key = user_key if user_key else secret_key
 
         model_choice = st.selectbox(
             "Model",
