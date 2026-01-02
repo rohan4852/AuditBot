@@ -9,7 +9,12 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from pdf2image import convert_from_bytes
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError as exc:
+    raise RuntimeError(
+        "Missing dependency 'pypdf'. Install it with: pip install -r requirements.txt"
+    ) from exc
 import pytesseract
 
 import google.generativeai as genai

@@ -1,6 +1,6 @@
 streamlit
 google-generativeai
-pypdf
+pypdf>=3.0.0
 pdf2image
 pytesseract
 pandas
